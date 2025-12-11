@@ -16,7 +16,7 @@ def get_connection():
 # -------------------------------
 
 # 1. Age Range
-def filter_by_age(min_age, max_age):
+def filter_by_age_range(min_age, max_age):
     conn = get_connection()
     query = f"SELECT * FROM patients WHERE Age BETWEEN {min_age} AND {max_age}"
     df = pd.read_sql_query(query, conn)
@@ -34,11 +34,17 @@ def filter_by_gender(gender):
 # 3. Hospital
 def filter_by_hospital(hospitals):
     conn = get_connection()
-    hospital_list = ','.join([f"'{h}'" for h in hospitals])
+
+    if isinstance(hospitals, str):
+        hospitals = [hospitals]
+
+    hospital_list = ",".join([f"'{h}'" for h in hospitals])
     query = f"SELECT * FROM patients WHERE Hospital IN ({hospital_list})"
+
     df = pd.read_sql_query(query, conn)
     conn.close()
     return df
+
 
 # 4. Doctor
 def filter_by_doctor(doctors):
@@ -132,17 +138,6 @@ def filter_by_medication(meds):
     df = pd.read_sql_query(query, conn)
     conn.close()
     return df
-
-def filter_patients(
-    age_min=None, age_max=None, gender=None, hospital=None, doctor=None,
-    admission_type=None, medical_condition=None, admission_start=None,
-    admission_end=None, discharge_start=None, discharge_end=None,
-    billing_min=None, billing_max=None, insurance_provider=None,
-    test_results=None, blood_type=None, medication=None
-):
-    conn = get_connection()
-    query = "SELECT * FROM patients WHERE 1=1"
-    params = []
 
 
 # -------------------------------
