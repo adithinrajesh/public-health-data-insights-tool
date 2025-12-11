@@ -1,3 +1,4 @@
+from socket import create_connection
 import sqlite3
 import pandas as pd
 import os
@@ -14,37 +15,135 @@ def get_connection():
 # Filtering functions
 # -------------------------------
 
-def filter_by_hospital(hospital_name):
-    """Return all records for a given hospital."""
+# 1. Age Range
+def filter_by_age(min_age, max_age):
     conn = get_connection()
-    query = "SELECT * FROM patients WHERE Hospital = ?"
-    df = pd.read_sql_query(query, conn, params=(hospital_name,))
+    query = f"SELECT * FROM patients WHERE Age BETWEEN {min_age} AND {max_age}"
+    df = pd.read_sql_query(query, conn)
     conn.close()
     return df
 
+# 2. Gender
 def filter_by_gender(gender):
-    """Return all records for a given gender."""
     conn = get_connection()
-    query = "SELECT * FROM patients WHERE Gender = ?"
-    df = pd.read_sql_query(query, conn, params=(gender,))
+    query = f"SELECT * FROM patients WHERE Gender='{gender}'"
+    df = pd.read_sql_query(query, conn)
     conn.close()
     return df
 
-def filter_by_age_range(min_age, max_age):
-    """Return all records within a given age range."""
+# 3. Hospital
+def filter_by_hospital(hospitals):
     conn = get_connection()
-    query = "SELECT * FROM patients WHERE Age BETWEEN ? AND ?"
-    df = pd.read_sql_query(query, conn, params=(min_age, max_age))
+    hospital_list = ','.join([f"'{h}'" for h in hospitals])
+    query = f"SELECT * FROM patients WHERE Hospital IN ({hospital_list})"
+    df = pd.read_sql_query(query, conn)
     conn.close()
     return df
 
+# 4. Doctor
+def filter_by_doctor(doctors):
+    conn = get_connection()
+    doctor_list = ','.join([f"'{d}'" for d in doctors])
+    query = f"SELECT * FROM patients WHERE Doctor IN ({doctor_list})"
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+# 5. Admission Type
+def filter_by_admission_type(adm_types):
+    conn = get_connection()
+    type_list = ','.join([f"'{t}'" for t in adm_types])
+    query = f"SELECT * FROM patients WHERE AdmissionType IN ({type_list})"
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+# 6. Medical Condition
+def filter_by_condition(conditions):
+    conn = get_connection()
+    cond_list = ','.join([f"'{c}'" for c in conditions])
+    query = f"SELECT * FROM patients WHERE MedicalCondition IN ({cond_list})"
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+# 7. Admission Date Range
 def filter_by_admission_date(start_date, end_date):
-    """Return all records within a date range. Format: 'YYYY-MM-DD'."""
     conn = get_connection()
-    query = "SELECT * FROM patients WHERE DateOfAdmission BETWEEN ? AND ?"
-    df = pd.read_sql_query(query, conn, params=(start_date, end_date))
+    query = f"""
+        SELECT * FROM patients
+        WHERE DateOfAdmission BETWEEN '{start_date}' AND '{end_date}'
+    """
+    df = pd.read_sql_query(query, conn)
     conn.close()
     return df
+
+# 8. Discharge Date Range
+def filter_by_discharge_date(start_date, end_date):
+    conn = get_connection()
+    query = f"""
+        SELECT * FROM patients
+        WHERE DischargeDate BETWEEN '{start_date}' AND '{end_date}'
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+# 9. Billing Amount Range
+def filter_by_billing(min_amount, max_amount):
+    conn = get_connection()
+    query = f"SELECT * FROM patients WHERE BillingAmount BETWEEN {min_amount} AND {max_amount}"
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+# 10. Insurance Provider
+def filter_by_insurance(providers):
+    conn = get_connection()
+    prov_list = ','.join([f"'{p}'" for p in providers])
+    query = f"SELECT * FROM patients WHERE InsuranceProvider IN ({prov_list})"
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+# 11. Test Results
+def filter_by_test_results(results):
+    conn = get_connection()
+    res_list = ','.join([f"'{r}'" for r in results])
+    query = f"SELECT * FROM patients WHERE TestResults IN ({res_list})"
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+# 12. Blood Type
+def filter_by_blood_type(blood_types):
+    conn = get_connection()
+    bt_list = ','.join([f"'{b}'" for b in blood_types])
+    query = f"SELECT * FROM patients WHERE BloodType IN ({bt_list})"
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+# 13. Medication
+def filter_by_medication(meds):
+    conn = get_connection()
+    med_list = ','.join([f"'{m}'" for m in meds])
+    query = f"SELECT * FROM patients WHERE Medication IN ({med_list})"
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+def filter_patients(
+    age_min=None, age_max=None, gender=None, hospital=None, doctor=None,
+    admission_type=None, medical_condition=None, admission_start=None,
+    admission_end=None, discharge_start=None, discharge_end=None,
+    billing_min=None, billing_max=None, insurance_provider=None,
+    test_results=None, blood_type=None, medication=None
+):
+    conn = get_connection()
+    query = "SELECT * FROM patients WHERE 1=1"
+    params = []
+
 
 # -------------------------------
 # Summary functions
@@ -91,6 +190,72 @@ def billing_stats():
     """Return min, max, and average billing amount."""
     conn = get_connection()
     query = "SELECT MIN(BillingAmount) AS MinBill, MAX(BillingAmount) AS MaxBill, AVG(BillingAmount) AS AvgBill FROM patients"
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+def summary_by_doctor():
+    conn = get_connection()
+    query = """
+    SELECT Doctor, COUNT(*) AS PatientCount
+    FROM patients
+    GROUP BY Doctor
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+def summary_by_admission_type():
+    conn = get_connection()
+    query = """
+    SELECT "Admission Type" AS AdmissionType, COUNT(*) AS PatientCount
+    FROM patients
+    GROUP BY "Admission Type"
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+def summary_by_test_results():
+    conn = get_connection()
+    query = """
+    SELECT "TestResults", COUNT(*) AS PatientCount
+    FROM patients
+    GROUP BY "TestResults"
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+def summary_by_blood_type():
+    conn = get_connection()
+    query = """
+    SELECT "BloodType", COUNT(*) AS PatientCount
+    FROM patients
+    GROUP BY "BloodType"
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+def summary_by_medication():
+    conn = get_connection()
+    query = """
+    SELECT "Medication", COUNT(*) AS PatientCount
+    FROM patients
+    GROUP BY "Medication"
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+def summary_by_insurance_provider():
+    conn = get_connection()
+    query = """
+    SELECT "InsuranceProvider", COUNT(*) AS PatientCount
+    FROM patients
+    GROUP BY "InsuranceProvider"
+    """
     df = pd.read_sql_query(query, conn)
     conn.close()
     return df
