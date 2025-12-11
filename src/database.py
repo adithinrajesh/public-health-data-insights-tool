@@ -4,6 +4,7 @@ import os
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "db", "health_data.db")
 DB_PATH = os.path.abspath(DB_PATH)
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 def create_connection():
     conn = sqlite3.connect(DB_PATH)
@@ -14,7 +15,7 @@ def create_table():
     cursor = conn.cursor()
 
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS health_records (
+        CREATE TABLE IF NOT EXISTS patients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             Name TEXT,
             Age INTEGER,
@@ -39,18 +40,12 @@ def create_table():
     print("Table created successfully.")
 
 def load_csv_to_db(csv_path):
-    """Load Kaggle CSV dataset into SQLite database."""
     conn = create_connection()
     df = pd.read_csv(csv_path)
 
-    # Rename columns to match SQLite table
-    df.rename(columns={
-        "Blood Type": "BloodType",
-        "Date of Admission": "DateOfAdmission",
-        "Insurance Provider": "InsuranceProvider",
-        "Test Results": "TestResults",
-    }, inplace=True)
+    # Remove spaces to match SQL queries
+    df.columns = [c.replace(" ", "") for c in df.columns]
 
     df.to_sql("patients", conn, if_exists="append", index=False)
     conn.close()
-    print("✔ Data loaded into database!")
+    print("Data loaded into database!")
