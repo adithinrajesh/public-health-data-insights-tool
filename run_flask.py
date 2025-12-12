@@ -1,6 +1,8 @@
 from app import create_app
 import logging
 from src.logging_setup import logger
+import sys, os
+sys.path.append(os.path.abspath("."))
 
 # Force Werkzeug to show the URL
 log = logging.getLogger('werkzeug')

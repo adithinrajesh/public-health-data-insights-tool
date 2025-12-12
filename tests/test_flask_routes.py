@@ -1,5 +1,12 @@
 import pytest
 from app import create_app
+import sys, os
+sys.path.append(os.path.abspath("."))
+
+from src.analysis import (
+    filter_by_age_range, filter_by_gender, summary_by_hospital
+)
+from src.logging_setup import logger
 
 @pytest.fixture
 def client():
