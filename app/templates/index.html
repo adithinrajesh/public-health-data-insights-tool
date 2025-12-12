@@ -1,26 +1,51 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Public Health Data Insights</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding: 40px; background-color: #f8f9fa; }
+        .header { text-align: center; margin-bottom: 60px; }
+        .dashboard { display: flex; justify-content: center; gap: 30px; }
+        .box { 
+            background: #fff; 
+            width: 250px; 
+            height: 150px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+            cursor: pointer; 
+            transition: transform 0.2s;
+        }
+        .box:hover { transform: scale(1.05); }
+        h2 { margin: 0; }
+    </style>
 </head>
 <body>
+    <div class="header">
+        <h1>Welcome to the Public Health Data Insights Tool</h1>
+        <p>Analyze patient data, generate summaries, and visualize trends easily.</p>
+    </div>
 
-    <h1>Welcome to the Public Health Data Insights Tool</h1>
-
-    <h2>Filter Patients</h2>
-
-    <form action="/filter/age" method="get">
-        <label>Min Age:</label>
-        <input type="number" name="min_age" value="0">
-
-        <label>Max Age:</label>
-        <input type="number" name="max_age" value="120">
-
-        <button type="submit">Apply Filter</button>
-    </form>
-
-    <h2>Summaries</h2>
-    <a href="/summary/hospital">Hospital Summary</a>
-
+    <div class="dashboard">
+        <a href="/filter_page" class="text-decoration-none text-dark">
+            <div class="box">
+                <h2>Analytics</h2>
+            </div>
+        </a>
+        <a href="/summary_page" class="text-decoration-none text-dark">
+            <div class="box">
+                <h2>Summary</h2>
+            </div>
+        </a>
+        <a href="/visualization_page" class="text-decoration-none text-dark">
+            <div class="box">
+                <h2>Visualization</h2>
+            </div>
+        </a>
+    </div>
 </body>
 </html>

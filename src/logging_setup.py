@@ -1,15 +1,28 @@
-# src/logging_setup.py
 import logging
 import os
 
-LOG_PATH = os.path.join(os.path.dirname(__file__), "..", "logs")
-os.makedirs(LOG_PATH, exist_ok=True)
+# Create logs directory if it doesn't exist
+LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
 
-logging.basicConfig(
-    filename=os.path.join(LOG_PATH, "app.log"),
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    filemode="a"
-)
+LOG_FILE = os.path.join(LOG_DIR, "app.log")
 
-logger = logging.getLogger("HealthDataApp")
+# Configure logger
+logger = logging.getLogger("app_logger")
+logger.setLevel(logging.INFO)
+
+# File handler
+fh = logging.FileHandler(LOG_FILE)
+fh.setLevel(logging.INFO)
+
+# Console handler
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+
+# Formatter
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+ch.setFormatter(formatter)
+
+logger.addHandler(fh)
+logger.addHandler(ch)
