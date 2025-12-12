@@ -61,6 +61,7 @@ def filter_by_admission_type(adm_types):
     type_list = ','.join([f"'{t}'" for t in adm_types])
     query = f"SELECT * FROM patients WHERE AdmissionType IN ({type_list})"
     df = pd.read_sql_query(query, conn)
+    
     conn.close()
     return df
 
