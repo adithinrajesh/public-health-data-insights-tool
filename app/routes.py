@@ -17,10 +17,11 @@ def filter_age():
     max_age = int(request.args.get("max_age", 120))
     logger.info(f"Filtering by age: {min_age}-{max_age}")
     df = filter_by_age_range(min_age, max_age)
-    return df.to_html()
+    return render_template("results.html", table_html=df.to_html())
 
 @main_bp.route("/summary/hospital")
 def hospital_summary():
     logger.info("Getting summary by hospital")
     df = summary_by_hospital()
-    return df.to_html()
+    return render_template("summary.html", table_html=df.to_html())
+

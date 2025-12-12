@@ -1,10 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Public Health Dashboard</title>
+    <title>Public Health Data Insights</title>
 </head>
 <body>
-    <h1>Welcome to the Public Health Data Insights Tool</h1>
-    <p>Use endpoints like /filter/age or /summary/hospital to interact.</p>
+    <h1>Filter Patients</h1>
+
+    <form action="/filter/age" method="get">
+        <label>Min Age:</label>
+        <input type="number" name="min_age">
+
+        <label>Max Age:</label>
+        <input type="number" name="max_age">
+
+        <button type="submit">Filter by Age</button>
+    </form>
+
+    <h2>Summaries</h2>
+    <a href="/summary/hospital">Hospital Summary</a>
+
 </body>
 </html>
