@@ -1,9 +1,12 @@
 from app import create_app
 import logging
+from src.logging_setup import logger
 
 # Force Werkzeug to show the URL
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.INFO)
+
+logger.info("Starting Flask server...")
 
 app = create_app()
 
