@@ -1,69 +1,215 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Filter Patients - Public Health Data Insights Tool</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Filter Patients</title>
+
+<style>
+    body {
+        background: #f4f5f7;
+        font-family: Arial, sans-serif;
+        margin: 0;
+    }
+
+    header {
+        background: #2c3e50;
+        color: white;
+        padding: 20px;
+        position: relative;
+        text-align: center;
+    }
+
+    .back-btn {
+        position: absolute;
+        left: 20px;
+        top: 20px;
+        padding: 10px 20px;
+        background: #555;
+        color: white;
+        border-radius: 5px;
+        text-decoration: none;
+    }
+
+    .container {
+        width: 90%;
+        max-width: 1000px;
+        margin: 25px auto;
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    .section-title {
+        font-weight: bold;
+        margin-top: 15px;
+    }
+
+    input, select {
+        width: 250px;
+        padding: 10px;
+        margin-top: 5px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+
+    .filter-row {
+        margin-bottom: 15px;
+    }
+
+    button {
+        margin-top: 20px;
+        padding: 12px 25px;
+        font-size: 16px;
+        background: #3498db;
+        border: none;
+        color: white;
+        border-radius: 8px;
+        cursor: pointer;
+        margin-right: 10px;
+    }
+
+    .table-wrapper {
+        margin-top: 25px;
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+    }
+
+    th, td {
+        padding: 10px;
+        border: 1px solid #ddd;
+        white-space: nowrap;
+    }
+
+    th {
+        background: #2c3e50;
+        color: white;
+    }
+
+    .alert {
+        margin-top: 20px;
+        padding: 12px;
+        background: #ffdddd;
+        border-left: 4px solid red;
+        border-radius: 5px;
+    }
+</style>
+
+<script>
+let currentPage = 1;       // current page number
+const rowsPerPage = 50;    // rows per page
+
+function resetFilters() {
+    document.getElementById("min_age").value = "";
+    document.getElementById("max_age").value = "";
+    document.getElementById("gender").value = "";
+    document.getElementById("hospital").value = "";
+    document.getElementById("condition").value = "";
+    document.getElementById("doctor").value = "";
+    document.getElementById("ad_start").value = "";
+    document.getElementById("ad_end").value = "";
+    document.getElementById("bill_min").value = "";
+    document.getElementById("bill_max").value = "";
+    currentPage = 1;
+    applyFilters();
+}
+
+async function goToPage(page) {
+    currentPage = page;
+    await applyFilters();
+}
+
+async function applyFilters() {
+    const payload = {
+        min_age: document.getElementById("min_age").value,
+        max_age: document.getElementById("max_age").value,
+        gender: document.getElementById("gender").value,
+        hospital: document.getElementById("hospital").value,
+        condition: document.getElementById("condition").value,
+        doctor: document.getElementById("doctor").value,
+        ad_start: document.getElementById("ad_start").value,
+        ad_end: document.getElementById("ad_end").value,
+        bill_min: document.getElementById("bill_min").value,
+        bill_max: document.getElementById("bill_max").value,
+        page: currentPage,
+        per_page: rowsPerPage
+    };
+
+    const response = await fetch("/filter", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+    });
+
+    const html = await response.text();
+    document.getElementById("results").innerHTML = html;
+}
+</script>
+
 </head>
-<body class="bg-light">
-    <header class="bg-dark text-white text-center p-4">
-        <h1>Filter & Analytics</h1>
-        <p>Select criteria to filter patient data</p>
-    </header>
+<body>
 
-    <main class="container my-5">
-        <!-- Filter Form -->
-        <div class="card p-4 mb-5 shadow-sm">
-            <form action="{{ url_for('main.filter_results') }}" method="get">
-                <div class="row mb-3">
-                    <div class="col-md-3">
-                        <label for="min_age" class="form-label">Min Age</label>
-                        <input type="number" class="form-control" name="min_age" id="min_age" placeholder="0">
-                    </div>
-                    <div class="col-md-3">
-                        <label for="max_age" class="form-label">Max Age</label>
-                        <input type="number" class="form-control" name="max_age" id="max_age" placeholder="120">
-                    </div>
-                    <div class="col-md-3">
-                        <label for="gender" class="form-label">Gender</label>
-                        <select class="form-select" name="gender" id="gender">
-                            <option value="">All</option>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="hospital" class="form-label">Hospital</label>
-                        <input type="text" class="form-control" name="hospital" id="hospital" placeholder="Hospital Name">
-                    </div>
-                </div>
+<header>
+    <a href="/" class="back-btn">⬅ Home</a>
+    <h1>Patient Filtering</h1>
+</header>
 
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="medical_condition" class="form-label">Medical Condition</label>
-                        <input type="text" class="form-control" name="medical_condition" id="medical_condition" placeholder="Condition">
-                    </div>
-                </div>
+<div class="container">
 
-                <button type="submit" class="btn btn-primary">Apply Filters</button>
-                <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Back to Home</a>
-            </form>
-        </div>
+    <div class="filter-row">
+        <div class="section-title">Age Range</div>
+        <input type="number" id="min_age" placeholder="Min Age">
+        <input type="number" id="max_age" placeholder="Max Age">
+    </div>
 
-        <!-- Filtered Results Table -->
-        {% if table_html %}
-        <div class="card p-4 shadow-sm">
-            <h3>Filtered Patients</h3>
-            <div class="table-responsive">
-                {{ table_html | safe }}
-            </div>
-        </div>
-        {% endif %}
-    </main>
+    <div class="filter-row">
+        <div class="section-title">Gender</div>
+        <select id="gender">
+            <option value="">--Any--</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+        </select>
+    </div>
 
-    <footer class="text-center py-3 bg-dark text-white mt-5">
-        &copy; 2025 Public Health Data Insights Tool
-    </footer>
+    <div class="filter-row">
+        <div class="section-title">Hospital</div>
+        <input type="text" id="hospital" placeholder="Hospital Name">
+    </div>
+
+    <div class="filter-row">
+        <div class="section-title">Medical Condition</div>
+        <input type="text" id="condition" placeholder="Condition Name">
+    </div>
+
+    <div class="filter-row">
+        <div class="section-title">Doctor</div>
+        <input type="text" id="doctor" placeholder="Doctor Name">
+    </div>
+
+    <div class="filter-row">
+        <div class="section-title">Admission Date</div>
+        <input type="date" id="ad_start"> to
+        <input type="date" id="ad_end">
+    </div>
+
+    <div class="filter-row">
+        <div class="section-title">Billing Range</div>
+        <input type="number" id="bill_min" placeholder="Min Amount">
+        <input type="number" id="bill_max" placeholder="Max Amount">
+    </div>
+
+    <button onclick="applyFilters()">Apply Filters</button>
+    <button type="button" onclick="resetFilters()">Reset All Filters</button>
+
+    <div class="table-wrapper" id="results"></div>
+
+</div>
+
 </body>
 </html>
