@@ -255,3 +255,126 @@ def summary_by_insurance_provider():
     df = pd.read_sql_query(query, conn)
     conn.close()
     return df
+
+def filter_patients(
+    min_age=None, max_age=None,
+    gender=None,
+    hospitals=None,
+    conditions=None,
+    doctors=None,
+    admission_types=None,
+    admission_start=None, admission_end=None,
+    discharge_start=None, discharge_end=None,
+    min_billing=None, max_billing=None,
+    insurance_providers=None,
+    test_results=None,
+    blood_types=None,
+    medications=None
+):
+    """
+    Apply multiple optional filters to patients table and return a DataFrame.
+    Each filter is optional; only applied if provided.
+    """
+    conn = get_connection()
+    query = "SELECT * FROM patients WHERE 1=1"
+    params = []
+
+    # Age filters
+    if min_age is not None:
+        query += " AND Age >= ?"
+        params.append(min_age)
+    if max_age is not None:
+        query += " AND Age <= ?"
+        params.append(max_age)
+
+    # Gender
+    if gender:
+        query += " AND Gender = ?"
+        params.append(gender)
+
+    # Hospital(s)
+    if hospitals:
+        if isinstance(hospitals, str):
+            hospitals = [hospitals]
+        placeholders = ",".join(["?"]*len(hospitals))
+        query += f" AND Hospital IN ({placeholders})"
+        params.extend(hospitals)
+
+    # Medical condition(s)
+    if conditions:
+        if isinstance(conditions, str):
+            conditions = [conditions]
+        placeholders = ",".join(["?"]*len(conditions))
+        query += f" AND MedicalCondition IN ({placeholders})"
+        params.extend(conditions)
+
+    # Doctor(s)
+    if doctors:
+        if isinstance(doctors, str):
+            doctors = [doctors]
+        placeholders = ",".join(["?"]*len(doctors))
+        query += f" AND Doctor IN ({placeholders})"
+        params.extend(doctors)
+
+    # Admission type(s)
+    if admission_types:
+        if isinstance(admission_types, str):
+            admission_types = [admission_types]
+        placeholders = ",".join(["?"]*len(admission_types))
+        query += f" AND AdmissionType IN ({placeholders})"
+        params.extend(admission_types)
+
+    # Admission date range
+    if admission_start and admission_end:
+        query += " AND DateOfAdmission BETWEEN ? AND ?"
+        params.extend([admission_start, admission_end])
+
+    # Discharge date range
+    if discharge_start and discharge_end:
+        query += " AND DischargeDate BETWEEN ? AND ?"
+        params.extend([discharge_start, discharge_end])
+
+    # Billing amount
+    if min_billing is not None:
+        query += " AND BillingAmount >= ?"
+        params.append(min_billing)
+    if max_billing is not None:
+        query += " AND BillingAmount <= ?"
+        params.append(max_billing)
+
+    # Insurance provider(s)
+    if insurance_providers:
+        if isinstance(insurance_providers, str):
+            insurance_providers = [insurance_providers]
+        placeholders = ",".join(["?"]*len(insurance_providers))
+        query += f" AND InsuranceProvider IN ({placeholders})"
+        params.extend(insurance_providers)
+
+    # Test results
+    if test_results:
+        if isinstance(test_results, str):
+            test_results = [test_results]
+        placeholders = ",".join(["?"]*len(test_results))
+        query += f" AND TestResults IN ({placeholders})"
+        params.extend(test_results)
+
+    # Blood type
+    if blood_types:
+        if isinstance(blood_types, str):
+            blood_types = [blood_types]
+        placeholders = ",".join(["?"]*len(blood_types))
+        query += f" AND BloodType IN ({placeholders})"
+        params.extend(blood_types)
+
+    # Medication
+    if medications:
+        if isinstance(medications, str):
+            medications = [medications]
+        placeholders = ",".join(["?"]*len(medications))
+        query += f" AND Medication IN ({placeholders})"
+        params.extend(medications)
+
+    # Execute query
+    df = pd.read_sql_query(query, conn, params=params)
+    conn.close()
+    return df

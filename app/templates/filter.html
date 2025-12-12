@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Filter Patients - Public Health Data Insights Tool</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <header class="bg-dark text-white text-center p-4">
+        <h1>Filter & Analytics</h1>
+        <p>Select criteria to filter patient data</p>
+    </header>
+
+    <main class="container my-5">
+        <!-- Filter Form -->
+        <div class="card p-4 mb-5 shadow-sm">
+            <form action="{{ url_for('main.filter_results') }}" method="get">
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label for="min_age" class="form-label">Min Age</label>
+                        <input type="number" class="form-control" name="min_age" id="min_age" placeholder="0">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="max_age" class="form-label">Max Age</label>
+                        <input type="number" class="form-control" name="max_age" id="max_age" placeholder="120">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="gender" class="form-label">Gender</label>
+                        <select class="form-select" name="gender" id="gender">
+                            <option value="">All</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="hospital" class="form-label">Hospital</label>
+                        <input type="text" class="form-control" name="hospital" id="hospital" placeholder="Hospital Name">
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="medical_condition" class="form-label">Medical Condition</label>
+                        <input type="text" class="form-control" name="medical_condition" id="medical_condition" placeholder="Condition">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Apply Filters</button>
+                <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Back to Home</a>
+            </form>
+        </div>
+
+        <!-- Filtered Results Table -->
+        {% if table_html %}
+        <div class="card p-4 shadow-sm">
+            <h3>Filtered Patients</h3>
+            <div class="table-responsive">
+                {{ table_html | safe }}
+            </div>
+        </div>
+        {% endif %}
+    </main>
+
+    <footer class="text-center py-3 bg-dark text-white mt-5">
+        &copy; 2025 Public Health Data Insights Tool
+    </footer>
+</body>
+</html>
