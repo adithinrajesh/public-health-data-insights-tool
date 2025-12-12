@@ -15,7 +15,14 @@ def load_data_from_db():
     conn.close()
     return df
 
-def clean_data(df: pd.DataFrame) -> pd.DataFrame:
+def clean_data(df: pd.DataFrame, for_summary=False) -> pd.DataFrame:
+    """
+    Clean the dataset:
+    - Strips strings, normalizes case
+    - Converts numeric columns
+    - Parses dates
+    - Optional: sanitizes numeric columns for summary analysis
+    """
     # Strip strings and normalize
     str_cols = ["Name", "Gender", "BloodType", "MedicalCondition", 
                 "Doctor", "Hospital", "InsuranceProvider", 
@@ -24,11 +31,16 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
         if col in df.columns:
             df[col] = df[col].astype(str).str.strip().str.title()
 
-    # Handle missing numerical values
+    # Handle numeric values
     if "Age" in df.columns:
         df["Age"] = pd.to_numeric(df["Age"], errors='coerce').fillna(0).astype(int)
+        if for_summary:
+            df = df[df["Age"] >= 0]  # ensure positive ages
+
     if "BillingAmount" in df.columns:
         df["BillingAmount"] = pd.to_numeric(df["BillingAmount"], errors='coerce').fillna(0.0).astype(float)
+        if for_summary:
+            df = df[df["BillingAmount"] >= 0.0]  # remove negative billing for summaries
 
     # Dates
     for col in ["DateOfAdmission", "DischargeDate"]:

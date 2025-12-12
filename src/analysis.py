@@ -101,3 +101,55 @@ def filter_patients(
     df = pd.read_sql_query(final_query, conn, params=params)
     conn.close()
     return df
+
+import pandas as pd
+
+def get_summary(df, column, agg_type="mean"):
+    """
+    Return summary statistics for a column.
+    agg_type: 'mean', 'min', 'max', 'count'
+    """
+    if column not in df.columns:
+        return None
+    
+    if agg_type == "mean":
+        return df[column].mean()
+    elif agg_type == "min":
+        return df[column].min()
+    elif agg_type == "max":
+        return df[column].max()
+    elif agg_type == "count":
+        return df[column].count()
+    else:
+        raise ValueError("Unsupported aggregation type")
+
+def group_summary(df, group_col, agg_col, agg_type="mean"):
+    """
+    Group by `group_col` and aggregate `agg_col` using `agg_type`.
+    """
+    if group_col not in df.columns or agg_col not in df.columns:
+        return pd.DataFrame()
+    
+    grouped = df.groupby(group_col)[agg_col]
+    
+    if agg_type == "mean":
+        return grouped.mean().reset_index()
+    elif agg_type == "min":
+        return grouped.min().reset_index()
+    elif agg_type == "max":
+        return grouped.max().reset_index()
+    elif agg_type == "count":
+        return grouped.count().reset_index()
+    else:
+        raise ValueError("Unsupported aggregation type")
+
+def trend_over_time(df, date_col, value_col, freq="M"):
+    """
+    Summarise trends over time.
+    date_col: date column in df
+    value_col: column to aggregate
+    freq: 'D' daily, 'W' weekly, 'M' monthly
+    """
+    df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+    trend = df.groupby(pd.Grouper(key=date_col, freq=freq))[value_col].mean().reset_index()
+    return trend

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visualize Data</title>
+<style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f4f5f7; }
+    header { background:#2c3e50; color:white; padding:20px; text-align:center; position:relative; }
+    .back-btn { position:absolute; left:20px; top:20px; padding:10px 20px; background:#555; color:white; border-radius:5px; text-decoration:none; }
+    .container { width:90%; max-width:1000px; margin:25px auto; background:white; padding:25px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1); }
+    .section-title { font-weight:bold; margin-top:15px; }
+    select, button { width:250px; padding:10px; margin-top:5px; border-radius:5px; border:1px solid #ccc; }
+    button { width:auto; background:#3498db; color:white; border:none; cursor:pointer; border-radius:8px; margin-top:20px; }
+    .table-wrapper { margin-top:25px; overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:10px; border:1px solid #ddd; text-align:center; }
+    th { background:#2c3e50; color:white; }
+    .alert { margin-top:20px; padding:12px; background:#ffdddd; border-left:4px solid red; border-radius:5px; }
+</style>
+<script>
+const categoricalCols = ["Gender","BloodType","MedicalCondition","InsuranceProvider","AdmissionType","Medication","TestResults"];
+const numericCols = ["Age","BillingAmount"];
+
+function populateVizDropdowns() {
+    const colSelect = document.getElementById("viz_column");
+    const groupSelect = document.getElementById("viz_group");
+
+    numericCols.forEach(col => {
+        const opt = document.createElement("option");
+        opt.value = col;
+        opt.text = col;
+        colSelect.appendChild(opt);
+    });
+
+    categoricalCols.forEach(col => {
+        const opt = document.createElement("option");
+        opt.value = col;
+        opt.text = col;
+        groupSelect.appendChild(opt);
+    });
+}
+
+async function generateVisualization() {
+    const payload = {
+        column: document.getElementById("viz_column").value,
+        chart_type: document.getElementById("viz_type").value,
+        group_by: document.getElementById("viz_group").value
+    };
+
+    if(!payload.column){
+        alert("Please select a numeric column to visualize.");
+        return;
+    }
+
+    const response = await fetch("/visualize", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+    });
+
+    if(response.ok){
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        document.getElementById("viz_output").src = url;
+    } else {
+        const text = await response.text();
+        document.getElementById("viz_output").src = "";
+        alert("Error: " + text);
+    }
+}
+
+window.onload = populateVizDropdowns;
+</script>
+</head>
+<body>
+
+<header>
+    <a href="/" class="back-btn">⬅ Home</a>
+    <h1>Visualize Data</h1>
+</header>
+
+<div class="container">
+
+    <div class="filter-row">
+        <div class="section-title">Numeric Column</div>
+        <select id="viz_column">
+            <option value="">--Select Column--</option>
+        </select>
+    </div>
+
+    <div class="filter-row">
+        <div class="section-title">Chart Type</div>
+        <select id="viz_type">
+            <option value="histogram">Histogram</option>
+            <option value="bar">Bar</option>
+            <option value="line">Line</option>
+        </select>
+    </div>
+
+    <div class="filter-row">
+        <div class="section-title">Optional Group By (categorical)</div>
+        <select id="viz_group">
+            <option value="">--None--</option>
+        </select>
+    </div>
+
+    <button onclick="generateVisualization()">Generate Chart</button>
+
+    <div class="table-wrapper" style="margin-top:20px;">
+        <img id="viz_output" src="" style="max-width:100%;"/>
+    </div>
+
+</div>
+</body>
+</html>

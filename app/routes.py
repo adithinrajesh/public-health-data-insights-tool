@@ -143,3 +143,78 @@ def filter_process():
     except Exception as e:
         logger.exception("Filter process error")
         return "<div class='alert'>Error processing request.</div>"
+    
+@main_bp.route("/summary", methods=["GET"])
+def summary_page():
+    """Render the summary/analysis page."""
+    return render_template("summary.html")
+from src.cleaning import load_data_from_db, clean_data
+
+from src.cleaning import load_data_from_db, clean_data
+
+@main_bp.route("/summary", methods=["POST"])
+def summary_process():
+    try:
+        data = request.get_json() or {}
+
+        group_by = data.get("group_by")      # categorical column
+        agg_column = data.get("column")      # numeric column (optional)
+        agg_func = data.get("agg_func")      # mean, min, max, count, or None
+
+        # Load and clean full dataset
+        df = load_data_from_db()
+        df = clean_data(df)
+
+        # Convert empty strings or "none" to None
+        if agg_func in [None, "", "none"]:
+            agg_func = None
+        if agg_column == "":
+            agg_column = None
+        if group_by == "":
+            group_by = None
+
+        # If nothing selected, return alert
+        if not group_by and not agg_column:
+            return "<div class='alert'>Please select an option above to display summary.</div>"
+
+        # Grouping + optional aggregation
+        if group_by:
+            if agg_column and agg_func:  # Group + aggregation
+                grouped = df.groupby(group_by)[agg_column]
+                if agg_func == "mean":
+                    result = grouped.mean().reset_index()
+                elif agg_func == "min":
+                    result = grouped.min().reset_index()
+                elif agg_func == "max":
+                    result = grouped.max().reset_index()
+                elif agg_func == "count":
+                    result = grouped.count().reset_index()
+                else:
+                    result = grouped.count().reset_index()
+            else:  # Group only → count rows per group
+                result = df.groupby(group_by).size().reset_index(name="Count")
+        else:
+            # No grouping, only aggregation
+            if agg_column and agg_func:
+                if agg_func == "mean":
+                    result = pd.DataFrame({agg_column: [df[agg_column].mean()]})
+                elif agg_func == "min":
+                    result = pd.DataFrame({agg_column: [df[agg_column].min()]})
+                elif agg_func == "max":
+                    result = pd.DataFrame({agg_column: [df[agg_column].max()]})
+                elif agg_func == "count":
+                    result = pd.DataFrame({agg_column: [df[agg_column].count()]})
+                else:
+                    result = pd.DataFrame({agg_column: [df[agg_column].count()]})
+            else:
+                # Neither grouping nor aggregation → total rows
+                result = pd.DataFrame({"Total Records": [len(df)]})
+
+        # Pretty column names
+        result.columns = [col.replace("_", " ").title() for col in result.columns]
+
+        return result.to_html(classes="table table-striped", index=False)
+
+    except Exception as e:
+        logger.exception("Summary process error")
+        return "<div class='alert'>Error processing summary request.</div>"

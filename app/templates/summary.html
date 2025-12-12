@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patient Summary</title>
+
+<style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f4f5f7; }
+    header { background:#2c3e50; color:white; padding:20px; text-align:center; position:relative; }
+    .back-btn { position:absolute; left:20px; top:20px; padding:10px 20px; background:#555; color:white; border-radius:5px; text-decoration:none; }
+    .container { width:90%; max-width:1000px; margin:25px auto; background:white; padding:25px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1); }
+    .section-title { font-weight:bold; margin-top:15px; }
+    select, button { width:250px; padding:10px; margin-top:5px; border-radius:5px; border:1px solid #ccc; }
+    button { width:auto; background:#3498db; color:white; border:none; cursor:pointer; border-radius:8px; margin-top:20px; margin-right:10px; }
+    .table-wrapper { margin-top:25px; overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:10px; border:1px solid #ddd; text-align:center; }
+    th { background:#2c3e50; color:white; }
+    .alert { margin-top:20px; padding:12px; background:#ffdddd; border-left:4px solid red; border-radius:5px; }
+</style>
+
+<script>
+const groupColumns = ["Gender","BloodType","MedicalCondition","InsuranceProvider","AdmissionType","Medication","TestResults"];
+const numericColumns = ["Age","BillingAmount"];
+
+function populateDropdowns() {
+    const groupSelect = document.getElementById("group_by");
+    const aggSelect = document.getElementById("agg_column");
+    const aggFuncSelect = document.getElementById("agg_func");
+
+    groupColumns.forEach(col => {
+        const opt = document.createElement("option");
+        opt.value = col;
+        opt.text = col;
+        groupSelect.appendChild(opt);
+    });
+
+    numericColumns.forEach(col => {
+        const opt = document.createElement("option");
+        opt.value = col;
+        opt.text = col;
+        aggSelect.appendChild(opt);
+    });
+
+    // Add "None" option to aggregation function
+    const noneOpt = document.createElement("option");
+    noneOpt.value = "none";
+    noneOpt.text = "--None--";
+    aggFuncSelect.insertBefore(noneOpt, aggFuncSelect.firstChild);
+}
+
+// Generate summary
+async function generateSummary() {
+    const group_by = document.getElementById("group_by").value;
+    const agg_column = document.getElementById("agg_column").value;
+    let agg_func = document.getElementById("agg_func").value;
+
+    // Treat "none" as null
+    if (agg_func === "none") agg_func = null;
+
+    // Show warning if nothing selected
+    if (!group_by && !agg_column) {
+        document.getElementById("results").innerHTML = "<div class='alert'>Please select an option above to display summary.</div>";
+        return;
+    }
+
+    const payload = {
+        group_by: group_by || null,
+        column: agg_column || null,
+        agg_func: agg_func
+    };
+
+    const response = await fetch("/summary", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+    });
+
+    const html = await response.text();
+    document.getElementById("results").innerHTML = html;
+}
+
+// Reset all dropdowns and clear results
+function resetSummary() {
+    document.getElementById("group_by").value = "";
+    document.getElementById("agg_column").value = "";
+    document.getElementById("agg_func").value = "none";
+    document.getElementById("results").innerHTML = "";
+}
+
+window.onload = populateDropdowns;
+</script>
+</head>
+
+<body>
+<header>
+    <a href="/" class="back-btn">⬅ Home</a>
+    <h1>Patient Summary</h1>
+</header>
+
+<div class="container">
+
+    <div class="filter-row">
+        <div class="section-title">Group By (categorical columns)</div>
+        <select id="group_by">
+            <option value="">--None--</option>
+        </select>
+    </div>
+
+    <div class="filter-row">
+        <div class="section-title">Aggregation Column (numeric only)</div>
+        <select id="agg_column">
+            <option value="">--None--</option>
+        </select>
+    </div>
+
+    <div class="filter-row">
+        <div class="section-title">Aggregation Function</div>
+        <select id="agg_func">
+            <!-- "None" will be added dynamically -->
+            <option value="mean">Mean</option>
+            <option value="min">Min</option>
+            <option value="max">Max</option>
+            <option value="count">Count</option>
+        </select>
+    </div>
+
+    <button onclick="generateSummary()">Generate Summary</button>
+    <button type="button" onclick="resetSummary()">Reset Values</button>
+
+    <div class="table-wrapper" id="results"></div>
+</div>
+</body>
+</html>
