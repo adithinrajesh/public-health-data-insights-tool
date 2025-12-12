@@ -2,6 +2,10 @@ from flask import Blueprint, render_template, request
 from src.analysis import filter_patients
 from src.logging_setup import logger
 import pandas as pd
+from flask import send_file
+import matplotlib.pyplot as plt
+import io
+from src.cleaning import load_data_from_db, clean_data
 
 main_bp = Blueprint("main", __name__)
 
@@ -218,3 +222,164 @@ def summary_process():
     except Exception as e:
         logger.exception("Summary process error")
         return "<div class='alert'>Error processing summary request.</div>"
+    
+# -------------------------
+# Visualization Routes
+# -------------------------
+from flask import Blueprint, render_template, request, send_file
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import io
+from src.cleaning import load_data_from_db, clean_data
+
+# ---------- Visualisation Pages ----------
+@main_bp.route("/visualisation", methods=["GET"])
+def visualisation_page():
+    return render_template("visualisation.html")
+
+# ---------- Curated Visualisations ----------
+@main_bp.route("/visualisation/curated", methods=["POST"])
+def curated_visualisation():
+    try:
+        data = request.get_json() or {}
+        plot_name = data.get("plot_name")
+
+        # Load and clean dataset
+        df = load_data_from_db()
+        df = clean_data(df)
+
+        # Precompute derived columns
+        df["LengthOfStay"] = (df["DischargeDate"] - df["DateOfAdmission"]).dt.days
+        df["AgeGroup"] = pd.cut(df["Age"], bins=[0,18,35,50,65,150], labels=["0-18","19-35","36-50","51-65","65+"])
+
+        plt.figure(figsize=(8,6))
+
+        # ---------- Patient Demographics ----------
+        if plot_name == "age_histogram":
+            df["Age"].hist(bins=20, color="skyblue")
+            plt.xlabel("Age")
+            plt.ylabel("Count")
+            plt.title("Histogram of Age Distribution")
+
+        elif plot_name == "gender_pie":
+            counts = df["Gender"].value_counts()
+            counts.plot(kind="pie", autopct='%1.1f%%', colors=["skyblue","lightgreen"])
+            plt.ylabel("")
+            plt.title("Gender Breakdown")
+
+        elif plot_name == "bloodtype_bar":
+            counts = df["BloodType"].value_counts()
+            counts.plot(kind="bar", color="skyblue")
+            plt.xlabel("Blood Type")
+            plt.ylabel("Count")
+            plt.title("Blood Type Frequency")
+
+        # ---------- Admissions & Hospitals ----------
+        elif plot_name == "admission_type_bar":
+            df["AdmissionType"].value_counts().plot(kind="bar", color="salmon")
+            plt.xlabel("Admission Type")
+            plt.ylabel("Count")
+            plt.title("Admissions by Type")
+
+        elif plot_name == "admissions_over_time":
+            df.groupby("DateOfAdmission").size().plot(kind="line", color="purple")
+            plt.xlabel("Date")
+            plt.ylabel("Number of Admissions")
+            plt.title("Admissions Over Time")
+
+        elif plot_name == "hospital_bar":
+            df["Hospital"].value_counts().plot(kind="bar", color="orange")
+            plt.xlabel("Hospital")
+            plt.ylabel("Patients")
+            plt.title("Hospital Comparison")
+
+        # ---------- Financial Insights ----------
+        elif plot_name == "billing_histogram":
+            df["BillingAmount"].hist(bins=20, color="green")
+            plt.xlabel("Billing Amount")
+            plt.ylabel("Count")
+            plt.title("Billing Amount Distribution")
+
+        elif plot_name == "billing_box_admission":
+            sns.boxplot(x="AdmissionType", y="BillingAmount", data=df)
+            plt.xlabel("Admission Type")
+            plt.ylabel("Billing Amount")
+            plt.title("Billing by Admission Type")
+
+        elif plot_name == "billing_avg_insurance":
+            df.groupby("InsuranceProvider")["BillingAmount"].mean().plot(kind="bar", color="lightblue")
+            plt.xlabel("Insurance Provider")
+            plt.ylabel("Average Billing")
+            plt.title("Average Billing per Insurance Provider")
+
+        # ---------- Medical & Treatment ----------
+        elif plot_name == "condition_bar":
+            df["MedicalCondition"].value_counts().plot(kind="barh", color="teal")
+            plt.xlabel("Count")
+            plt.ylabel("Medical Condition")
+            plt.title("Medical Condition Frequency")
+
+        elif plot_name == "medication_bar":
+            df["Medication"].value_counts().plot(kind="bar", color="pink")
+            plt.xlabel("Medication")
+            plt.ylabel("Count")
+            plt.title("Medication Usage")
+
+        elif plot_name == "condition_test_results":
+            df.groupby("MedicalCondition")["TestResults"].value_counts().unstack(fill_value=0).plot(
+                kind="bar", stacked=True
+            )
+            plt.xlabel("Medical Condition")
+            plt.ylabel("Count")
+            plt.title("Condition vs Test Results")
+
+        # ---------- Outcomes & Test Results ----------
+        elif plot_name == "test_results_pie":
+            df["TestResults"].value_counts().plot(kind="pie", autopct='%1.1f%%', colors=["skyblue","lightgreen","salmon"])
+            plt.ylabel("")
+            plt.title("Test Results Distribution")
+
+        elif plot_name == "length_of_stay_hist":
+            df["LengthOfStay"].hist(bins=20, color="purple")
+            plt.xlabel("Days")
+            plt.ylabel("Count")
+            plt.title("Length of Stay Distribution")
+
+        elif plot_name == "test_results_age_group":
+            df.groupby("AgeGroup")["TestResults"].value_counts().unstack(fill_value=0).plot(kind="bar", stacked=True)
+            plt.xlabel("Age Group")
+            plt.ylabel("Count")
+            plt.title("Test Results by Age Group")
+
+        # ---------- Advanced/Multivariate ----------
+        elif plot_name == "correlation_heatmap":
+            numeric_df = df[["Age","BillingAmount","LengthOfStay"]].sample(min(len(df), 2000), random_state=42)
+            sns.heatmap(numeric_df.corr(), annot=True, cmap="coolwarm")
+            plt.title("Correlation Heatmap")
+
+        elif plot_name == "pairplot":
+            numeric_df = df[["Age","BillingAmount","LengthOfStay","TestResults"]].sample(min(len(df), 2000), random_state=42)
+            sns.pairplot(numeric_df, hue="TestResults")
+
+        elif plot_name == "clustered_bar":
+            df.groupby(["InsuranceProvider","AdmissionType","TestResults"]).size().unstack(fill_value=0).plot(kind="bar")
+            plt.xlabel("Insurance Provider / Admission Type")
+            plt.ylabel("Count")
+            plt.title("Insurance × Admission × Test Results")
+
+        else:
+            return "<div class='alert'>Invalid curated plot name.</div>", 400
+
+        # Convert plot to PNG
+        buf = io.BytesIO()
+        plt.tight_layout()
+        plt.savefig(buf, format="png")
+        buf.seek(0)
+        plt.close()
+
+        return send_file(buf, mimetype="image/png")
+
+    except Exception as e:
+        logger.exception("Curated visualisation error")
+        return "<div class='alert'>Error generating curated plot.</div>", 500

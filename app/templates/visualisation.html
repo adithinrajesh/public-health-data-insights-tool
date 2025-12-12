@@ -3,114 +3,126 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Visualize Data</title>
+<title>Patient Curated Visualizations</title>
 <style>
     body { font-family: Arial, sans-serif; margin:0; background:#f4f5f7; }
     header { background:#2c3e50; color:white; padding:20px; text-align:center; position:relative; }
     .back-btn { position:absolute; left:20px; top:20px; padding:10px 20px; background:#555; color:white; border-radius:5px; text-decoration:none; }
-    .container { width:90%; max-width:1000px; margin:25px auto; background:white; padding:25px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1); }
-    .section-title { font-weight:bold; margin-top:15px; }
-    select, button { width:250px; padding:10px; margin-top:5px; border-radius:5px; border:1px solid #ccc; }
-    button { width:auto; background:#3498db; color:white; border:none; cursor:pointer; border-radius:8px; margin-top:20px; }
-    .table-wrapper { margin-top:25px; overflow-x:auto; }
-    table { width:100%; border-collapse:collapse; }
-    th, td { padding:10px; border:1px solid #ddd; text-align:center; }
-    th { background:#2c3e50; color:white; }
-    .alert { margin-top:20px; padding:12px; background:#ffdddd; border-left:4px solid red; border-radius:5px; }
+    .container { width:90%; max-width:1200px; margin:25px auto; background:white; padding:25px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1); }
+    .section-title { font-weight:bold; margin-top:15px; font-size:18px; }
+    button { width:auto; padding:10px 15px; margin:5px; background:#3498db; color:white; border:none; cursor:pointer; border-radius:5px; }
+    .plot-container { margin-top:25px; text-align:center; position:relative; }
+    img.plot { max-width:100%; height:auto; margin-top:10px; border:1px solid #ddd; border-radius:8px; display:block; margin-left:auto; margin-right:auto; }
+
+    /* Spinner Styles */
+    .spinner {
+        display: none;
+        border: 8px solid #f3f3f3;
+        border-top: 8px solid #3498db;
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        animation: spin 1s linear infinite;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10;
+    }
+
+    @keyframes spin {
+        0% { transform: translate(-50%, -50%) rotate(0deg); }
+        100% { transform: translate(-50%, -50%) rotate(360deg); }
+    }
 </style>
 <script>
-const categoricalCols = ["Gender","BloodType","MedicalCondition","InsuranceProvider","AdmissionType","Medication","TestResults"];
-const numericCols = ["Age","BillingAmount"];
+// ---------------- Curated Plots ----------------
+const curatedPlots = [
+    {name: "age_histogram", label: "Histogram of Age"},
+    {name: "gender_pie", label: "Gender Breakdown"},
+    {name: "bloodtype_bar", label: "Blood Type Frequency"},
+    {name: "admission_type_bar", label: "Admissions by Type"},
+    {name: "admissions_over_time", label: "Admissions Over Time"},
+    {name: "hospital_bar", label: "Hospital Comparison"},
+    {name: "billing_histogram", label: "Billing Amount Distribution"},
+    {name: "billing_box_admission", label: "Billing by Admission Type"},
+    {name: "billing_avg_insurance", label: "Average Billing per Insurance Provider"},
+    {name: "condition_bar", label: "Medical Condition Frequency"},
+    {name: "medication_bar", label: "Medication Usage"},
+    {name: "condition_test_results", label: "Condition vs Test Results"},
+    {name: "test_results_pie", label: "Test Results Distribution"},
+    {name: "length_of_stay_hist", label: "Length of Stay Distribution"},
+    {name: "test_results_age_group", label: "Test Results by Age Group"},
+    {name: "correlation_heatmap", label: "Correlation Heatmap"},
+    {name: "pairplot", label: "Pairplot: Age vs Billing vs Length of Stay"},
+    {name: "clustered_bar", label: "Insurance × Admission × Test Results"}
+];
 
-function populateVizDropdowns() {
-    const colSelect = document.getElementById("viz_column");
-    const groupSelect = document.getElementById("viz_group");
-
-    numericCols.forEach(col => {
-        const opt = document.createElement("option");
-        opt.value = col;
-        opt.text = col;
-        colSelect.appendChild(opt);
-    });
-
-    categoricalCols.forEach(col => {
-        const opt = document.createElement("option");
-        opt.value = col;
-        opt.text = col;
-        groupSelect.appendChild(opt);
+// Dynamically create buttons
+function populateCuratedButtons() {
+    const container = document.getElementById("curated_buttons");
+    curatedPlots.forEach(plot => {
+        const btn = document.createElement("button");
+        btn.textContent = plot.label;
+        btn.onclick = () => generateCuratedPlot(plot.name);
+        container.appendChild(btn);
     });
 }
 
-async function generateVisualization() {
-    const payload = {
-        column: document.getElementById("viz_column").value,
-        chart_type: document.getElementById("viz_type").value,
-        group_by: document.getElementById("viz_group").value
-    };
+// Show spinner
+function showSpinner() {
+    document.getElementById("spinner").style.display = "block";
+}
 
-    if(!payload.column){
-        alert("Please select a numeric column to visualize.");
-        return;
-    }
+// Hide spinner
+function hideSpinner() {
+    document.getElementById("spinner").style.display = "none";
+}
 
-    const response = await fetch("/visualize", {
+// Fetch curated plot from server
+async function generateCuratedPlot(plotName) {
+    showSpinner();
+    const response = await fetch("/visualisation/curated", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload)
+        body: JSON.stringify({plot_name: plotName})
     });
-
-    if(response.ok){
+    if (response.ok) {
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
-        document.getElementById("viz_output").src = url;
+        document.getElementById("curated_plot_img").src = url;
     } else {
-        const text = await response.text();
-        document.getElementById("viz_output").src = "";
-        alert("Error: " + text);
+        alert("Error generating curated plot.");
     }
+    hideSpinner();
 }
 
-window.onload = populateVizDropdowns;
+window.onload = () => {
+    populateCuratedButtons();
+};
 </script>
 </head>
 <body>
 
 <header>
     <a href="/" class="back-btn">⬅ Home</a>
-    <h1>Visualize Data</h1>
+    <h1>Patient Curated Visualizations</h1>
 </header>
 
 <div class="container">
 
-    <div class="filter-row">
-        <div class="section-title">Numeric Column</div>
-        <select id="viz_column">
-            <option value="">--Select Column--</option>
-        </select>
-    </div>
+    <!-- Curated Plots Section -->
+    <div class="section-title">Curated Plots</div>
+    <div id="curated_buttons"></div>
 
-    <div class="filter-row">
-        <div class="section-title">Chart Type</div>
-        <select id="viz_type">
-            <option value="histogram">Histogram</option>
-            <option value="bar">Bar</option>
-            <option value="line">Line</option>
-        </select>
-    </div>
-
-    <div class="filter-row">
-        <div class="section-title">Optional Group By (categorical)</div>
-        <select id="viz_group">
-            <option value="">--None--</option>
-        </select>
-    </div>
-
-    <button onclick="generateVisualization()">Generate Chart</button>
-
-    <div class="table-wrapper" style="margin-top:20px;">
-        <img id="viz_output" src="" style="max-width:100%;"/>
+    <div class="plot-container">
+        <!-- Spinner -->
+        <div id="spinner" class="spinner"></div>
+        <!-- Plot Image -->
+        <img id="curated_plot_img" class="plot" src="" alt="Curated Plot">
     </div>
 
 </div>
+
 </body>
 </html>
