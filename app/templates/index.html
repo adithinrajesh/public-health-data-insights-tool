@@ -4,16 +4,19 @@
     <title>Public Health Data Insights</title>
 </head>
 <body>
-    <h1>Filter Patients</h1>
+
+    <h1>Welcome to the Public Health Data Insights Tool</h1>
+
+    <h2>Filter Patients</h2>
 
     <form action="/filter/age" method="get">
         <label>Min Age:</label>
-        <input type="number" name="min_age">
+        <input type="number" name="min_age" value="0">
 
         <label>Max Age:</label>
-        <input type="number" name="max_age">
+        <input type="number" name="max_age" value="120">
 
-        <button type="submit">Filter by Age</button>
+        <button type="submit">Apply Filter</button>
     </form>
 
     <h2>Summaries</h2>
