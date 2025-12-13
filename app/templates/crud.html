@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manage Patients</title>
+<style>
+body { font-family: Arial, sans-serif; margin:0; background:#f4f5f7; }
+header { background:#2c3e50; color:white; padding:20px; text-align:center; position:relative; }
+.back-btn { position:absolute; left:20px; top:20px; padding:10px 20px; background:#555; color:white; border-radius:5px; text-decoration:none; }
+.container { width:95%; max-width:1400px; margin:25px auto; background:white; padding:25px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1); }
+h2 { margin-top:0; }
+form { display:flex; flex-wrap: wrap; gap:15px; margin-bottom:25px; }
+input, select, button { padding:10px; border-radius:5px; border:1px solid #ccc; font-size:14px; }
+button { background:#3498db; color:white; border:none; cursor:pointer; }
+button:hover { background:#2980b9; }
+table { width:100%; border-collapse: collapse; margin-top:10px; }
+table, th, td { border:1px solid #ddd; }
+th, td { padding:10px; text-align:center; }
+th { background:#f0f0f0; }
+.action-btn { padding:5px 10px; margin:0 2px; cursor:pointer; border:none; border-radius:5px; }
+.edit-btn { background:#f39c12; color:white; }
+.delete-btn { background:#e74c3c; color:white; }
+</style>
+<script>
+let currentPage = 1;
+const perPage = 50;
+
+// ---------------- Fetch Patients ----------------
+async function fetchPatients(page = 1) {
+    currentPage = page;
+    const response = await fetch(`/crud/read?page=${page}&per_page=${perPage}`);
+    const result = await response.json();
+
+    const tbody = document.getElementById("patients_tbody");
+    tbody.innerHTML = "";
+
+    result.data.forEach(patient => {
+        tbody.appendChild(createPatientRow(patient));
+    });
+
+    renderPagination(result.total);
+}
+
+// ---------------- Pagination ----------------
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / perPage);
+    let html = "";
+    for (let i = 1; i <= totalPages && i <= 10; i++) {
+        html += `<button onclick="fetchPatients(${i})" style="margin:2px; padding:6px 10px;">${i}</button>`;
+    }
+    document.getElementById("pagination").innerHTML = html;
+}
+
+// ---------------- Create / Update ----------------
+async function savePatient(event) {
+    event.preventDefault();
+    const id = document.getElementById("patient_id").value;
+
+    const payload = {
+        Name: document.getElementById("name").value,
+        Age: Number(document.getElementById("age").value),
+        Gender: document.getElementById("gender").value,
+        Hospital: document.getElementById("hospital").value,
+        MedicalCondition: document.getElementById("condition").value,
+        BillingAmount: Number(document.getElementById("billing").value)
+    };
+
+    let url = "/crud/create";
+    let method = "POST";
+
+    if (id) {
+        url = `/crud/update/${id}`;
+        method = "PUT";
+    }
+
+    const response = await fetch(url, {
+        method,
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        const err = await response.json();
+        showStatus(`Error: ${err.error || "Failed to save patient"}`, false);
+        return;
+    }
+
+    const result = await response.json();
+    document.getElementById("patient_form").reset();
+    document.getElementById("patient_id").value = "";
+
+    if (!id) {
+        // New patient → prepend using server-assigned ID
+        const newPatient = {...payload, id: Number(result.id)};
+        document.getElementById("patients_tbody").prepend(createPatientRow(newPatient));
+        showStatus("Patient added successfully!");
+    } else {
+        // Update → replace row
+        const row = document.querySelector(`tr[data-id="${id}"]`);
+        if (row) row.replaceWith(createPatientRow({...payload, id: Number(id)}));
+        showStatus("Patient data successfully edited!");
+    }
+}
+
+// ---------------- Create Table Row ----------------
+function createPatientRow(patient) {
+    const tr = document.createElement("tr");
+    tr.setAttribute("data-id", patient.id);
+
+    tr.innerHTML = `
+        <td>${patient.id}</td>
+        <td>${patient.Name}</td>
+        <td>${patient.Age}</td>
+        <td>${patient.Gender}</td>
+        <td>${patient.Hospital}</td>
+        <td>${patient.MedicalCondition}</td>
+        <td>${patient.BillingAmount}</td>
+        <td>
+            <button class="action-btn edit-btn">Edit</button>
+            <button class="action-btn delete-btn">Delete</button>
+        </td>
+    `;
+
+    // Attach listeners
+    tr.querySelector(".edit-btn").addEventListener("click", () => editPatient(patient.id));
+    tr.querySelector(".delete-btn").addEventListener("click", () => deletePatient(patient.id));
+
+    return tr;
+}
+
+// ---------------- Edit Patient ----------------
+async function editPatient(id) {
+    const row = document.querySelector(`tr[data-id="${id}"]`);
+    if (row) {
+        document.getElementById("patient_id").value = id;
+        document.getElementById("name").value = row.children[1].textContent;
+        document.getElementById("age").value = row.children[2].textContent;
+        document.getElementById("gender").value = row.children[3].textContent;
+        document.getElementById("hospital").value = row.children[4].textContent;
+        document.getElementById("condition").value = row.children[5].textContent;
+        document.getElementById("billing").value = row.children[6].textContent;
+        return;
+    }
+
+    const response = await fetch(`/crud/get/${id}`);
+    if (response.ok) {
+        const patient = await response.json();
+        document.getElementById("patient_id").value = patient.id;
+        document.getElementById("name").value = patient.Name;
+        document.getElementById("age").value = patient.Age;
+        document.getElementById("gender").value = patient.Gender;
+        document.getElementById("hospital").value = patient.Hospital;
+        document.getElementById("condition").value = patient.MedicalCondition;
+        document.getElementById("billing").value = patient.BillingAmount;
+    }
+}
+
+// ---------------- Delete Patient ----------------
+async function deletePatient(id) {
+    if (!confirm("Are you sure you want to delete this patient?")) return;
+
+    const response = await fetch(`/crud/delete/${id}`, { method: "DELETE" });
+    if (!response.ok) {
+        const err = await response.json();
+        showStatus(`Error: ${err.error || "Failed to delete patient"}`, false);
+        return;
+    }
+
+    const row = document.querySelector(`tr[data-id="${id}"]`);
+    if (row) row.remove();
+    showStatus("Patient deleted successfully!");
+}
+
+// ---------------- Show Status ----------------
+function showStatus(msg, success=true) {
+    const el = document.getElementById("status_msg");
+    el.textContent = msg;
+    el.style.color = success ? "green" : "red";
+    setTimeout(() => el.textContent="", 3000);
+}
+
+// ---------------- Init ----------------
+window.onload = () => fetchPatients(currentPage);
+</script>
+</head>
+<body>
+<header>
+    <a href="/" class="back-btn">⬅ Home</a>
+    <h1>Manage Patients</h1>
+</header>
+
+<div class="container">
+    <h2>Add / Edit Patient</h2>
+    <form id="patient_form" onsubmit="savePatient(event)">
+        <input type="hidden" id="patient_id">
+        <input type="text" id="name" placeholder="Name" required>
+        <input type="number" id="age" placeholder="Age" min="0" max="120" required>
+        <select id="gender" required>
+            <option value="">--Gender--</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+        </select>
+        <input type="text" id="hospital" placeholder="Hospital" required>
+        <input type="text" id="condition" placeholder="Medical Condition" required>
+        <input type="number" id="billing" placeholder="Billing Amount" min="0" step="0.01" required>
+        <button type="submit">Save Patient</button>
+        <div id="status_msg" style="margin-top:10px; font-weight:bold;"></div>
+    </form>
+
+    <h2>Patient Records</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th><th>Name</th><th>Age</th><th>Gender</th><th>Hospital</th>
+                <th>Condition</th><th>Billing</th><th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="patients_tbody"></tbody>
+    </table>
+    <div id="pagination" style="margin-top:15px; text-align:center;"></div>
+</div>
+</body>
+</html>

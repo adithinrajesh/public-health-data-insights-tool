@@ -13,6 +13,8 @@ def load_data_from_db():
     conn = create_connection()
     df = pd.read_sql_query("SELECT * FROM patients", conn)
     conn.close()
+    if "id" in df.columns:
+        df["id"] = df["id"].astype(int)
     return df
 
 def clean_data(df: pd.DataFrame, for_summary=False) -> pd.DataFrame:
@@ -60,8 +62,8 @@ def save_cleaned_data(df: pd.DataFrame):
     print("✔ Cleaned data saved to database")
 
 import sqlite3
-
-def save_to_db(df):
-    conn = sqlite3.connect("your_database.db")
+def save_to_db(df: pd.DataFrame):
+    """Save dataframe to the correct SQLite DB."""
+    conn = sqlite3.connect(DB_PATH)
     df.to_sql("patients", conn, if_exists="replace", index=False)
     conn.close()

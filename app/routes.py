@@ -5,7 +5,7 @@ import pandas as pd
 from flask import send_file
 import matplotlib.pyplot as plt
 import io
-from src.cleaning import load_data_from_db, clean_data
+from src.cleaning import load_data_from_db, clean_data, save_to_db
 
 main_bp = Blueprint("main", __name__)
 
@@ -383,3 +383,182 @@ def curated_visualisation():
     except Exception as e:
         logger.exception("Curated visualisation error")
         return "<div class='alert'>Error generating curated plot.</div>", 500
+
+# -------------------------
+# CRUD Routes
+# -------------------------
+from flask import Blueprint, request, jsonify, render_template
+import pandas as pd
+from src.cleaning import load_data_from_db, save_to_db, clean_data
+
+crud_bp = Blueprint("crud", __name__)
+
+@crud_bp.route("/crud", methods=["GET"])
+def crud_page():
+    return render_template("crud.html")
+
+@crud_bp.route("/crud/read", methods=["GET"])
+def read_patients():
+    page = int(request.args.get("page", 1))
+    per_page = int(request.args.get("per_page", 50))
+    df = clean_data(load_data_from_db())
+    total = len(df)
+    start, end = (page-1)*per_page, page*per_page
+    page_df = df.iloc[start:end]
+    return jsonify({"data": page_df.to_dict(orient="records"), "total": total})
+
+@crud_bp.route("/crud/get/<int:patient_id>", methods=["GET"])
+def get_patient(patient_id):
+    df = clean_data(load_data_from_db())
+    patient = df[df["id"] == patient_id]
+    if patient.empty:
+        return jsonify({"error": "Patient not found"}), 404
+    return patient.iloc[0].to_dict()
+
+@crud_bp.route("/crud/create", methods=["POST"])
+def create_patient():
+    try:
+        df = clean_data(load_data_from_db())
+        if "id" in df.columns:
+            df["id"] = df["id"].astype(int)
+
+        new_data = request.get_json()
+        new_id = int(df["id"].max()) + 1 if not df.empty else 1
+        new_data["id"] = new_id
+
+        df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
+        save_to_db(df)
+        return jsonify({"message": "Patient created", "id": new_id}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@crud_bp.route("/crud/update/<int:patient_id>", methods=["PUT"])
+def update_patient(patient_id):
+    try:
+        df = clean_data(load_data_from_db())
+        df["id"] = df["id"].astype(int)
+        if int(patient_id) not in df["id"].values:
+            return jsonify({"error": "Patient not found"}), 404
+
+        new_data = request.get_json()
+        for col, val in new_data.items():
+            df.loc[df["id"] == int(patient_id), col] = val
+        save_to_db(df)
+        return jsonify({"message": "Patient updated"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@crud_bp.route("/crud/delete/<int:patient_id>", methods=["DELETE"])
+def delete_patient(patient_id):
+    try:
+        df = clean_data(load_data_from_db())
+        df["id"] = df["id"].astype(int)
+        if int(patient_id) not in df["id"].values:
+            return jsonify({"error": "Patient not found"}), 404
+
+        df = df[df["id"] != int(patient_id)]
+        save_to_db(df)
+        return jsonify({"message": "Patient deleted"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+from flask import Response
+
+@main_bp.route("/export/filtered", methods=["POST"])
+def export_filtered():
+    """
+    Expects the same filter JSON payload as /filter POST.
+    Returns a CSV of the filtered patients.
+    """
+    try:
+        data = request.get_json() or {}
+
+        # Apply same filter as /filter
+        df = filter_patients(
+            min_age=data.get("min_age"),
+            max_age=data.get("max_age"),
+            gender=data.get("gender"),
+            hospital=data.get("hospital"),
+            condition=data.get("condition"),
+            doctor=data.get("doctor"),
+            ad_start=data.get("ad_start"),
+            ad_end=data.get("ad_end"),
+            bill_min=data.get("bill_min"),
+            bill_max=data.get("bill_max")
+        )
+
+        if df.empty:
+            return jsonify({"error": "No matching patients found"}), 404
+
+        # Convert DataFrame to CSV string
+        csv_data = df.to_csv(index=False)
+
+        # Send as file download
+        return Response(
+            csv_data,
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment;filename=filtered_patients.csv"}
+        )
+
+    except Exception as e:
+        logger.exception("Export filtered CSV error")
+        return jsonify({"error": str(e)}), 500
+
+@main_bp.route("/export/summary", methods=["POST"])
+def export_summary():
+    """
+    Expects same payload as /summary POST.
+    Returns a CSV of the summary table.
+    """
+    try:
+        data = request.get_json() or {}
+        group_by = data.get("group_by")
+        agg_column = data.get("column")
+        agg_func = data.get("agg_func")
+
+        df = clean_data(load_data_from_db())
+
+        if group_by:
+            if agg_column and agg_func:
+                grouped = df.groupby(group_by)[agg_column]
+                if agg_func == "mean":
+                    result = grouped.mean().reset_index()
+                elif agg_func == "min":
+                    result = grouped.min().reset_index()
+                elif agg_func == "max":
+                    result = grouped.max().reset_index()
+                elif agg_func == "count":
+                    result = grouped.count().reset_index()
+                else:
+                    result = grouped.count().reset_index()
+            else:
+                result = df.groupby(group_by).size().reset_index(name="Count")
+        else:
+            if agg_column and agg_func:
+                if agg_func == "mean":
+                    result = pd.DataFrame({agg_column: [df[agg_column].mean()]})
+                elif agg_func == "min":
+                    result = pd.DataFrame({agg_column: [df[agg_column].min()]})
+                elif agg_func == "max":
+                    result = pd.DataFrame({agg_column: [df[agg_column].max()]})
+                elif agg_func == "count":
+                    result = pd.DataFrame({agg_column: [df[agg_column].count()]})
+                else:
+                    result = pd.DataFrame({agg_column: [df[agg_column].count()]})
+            else:
+                result = pd.DataFrame({"Total Records": [len(df)]})
+
+        # Convert to CSV
+        csv_data = result.to_csv(index=False)
+
+        return Response(
+            csv_data,
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment;filename=summary.csv"}
+        )
+
+    except Exception as e:
+        logger.exception("Export summary CSV error")
+        return jsonify({"error": str(e)}), 500
