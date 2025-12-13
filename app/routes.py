@@ -24,6 +24,8 @@ def filter_page():
 def filter_process():
     try:
         data = request.get_json() or {}
+        user_ip = request.remote_addr
+        logger.info(f"[Filter] User {user_ip} applied filter: {data}")
 
         def clean(x):
             return x.strip() if isinstance(x, str) and x.strip() else None
@@ -160,6 +162,8 @@ from src.cleaning import load_data_from_db, clean_data
 def summary_process():
     try:
         data = request.get_json() or {}
+        user_ip = request.remote_addr
+        logger.info(f"[Summary] User {user_ip} generated summary: {data}")
 
         group_by = data.get("group_by")      # categorical column
         agg_column = data.get("column")      # numeric column (optional)
@@ -418,6 +422,9 @@ def get_patient(patient_id):
 @crud_bp.route("/crud/create", methods=["POST"])
 def create_patient():
     try:
+        new_data = request.get_json()
+        user_ip = request.remote_addr
+        logger.info(f"[CRUD] User {user_ip} created patient: {new_data}")
         df = clean_data(load_data_from_db())
         if "id" in df.columns:
             df["id"] = df["id"].astype(int)
@@ -436,6 +443,9 @@ def create_patient():
 @crud_bp.route("/crud/update/<int:patient_id>", methods=["PUT"])
 def update_patient(patient_id):
     try:
+        new_data = request.get_json()
+        user_ip = request.remote_addr
+        logger.info(f"[CRUD] User {user_ip} updated patient {patient_id}: {new_data}")
         df = clean_data(load_data_from_db())
         df["id"] = df["id"].astype(int)
         if int(patient_id) not in df["id"].values:
@@ -453,6 +463,8 @@ def update_patient(patient_id):
 @crud_bp.route("/crud/delete/<int:patient_id>", methods=["DELETE"])
 def delete_patient(patient_id):
     try:
+        user_ip = request.remote_addr
+        logger.info(f"[CRUD] User {user_ip} deleted patient {patient_id}")
         df = clean_data(load_data_from_db())
         df["id"] = df["id"].astype(int)
         if int(patient_id) not in df["id"].values:
@@ -463,19 +475,18 @@ def delete_patient(patient_id):
         return jsonify({"message": "Patient deleted"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-from flask import Response
+    
+from flask import Response, request, jsonify
+import pandas as pd
 
 @main_bp.route("/export/filtered", methods=["POST"])
 def export_filtered():
-    """
-    Expects the same filter JSON payload as /filter POST.
-    Returns a CSV of the filtered patients.
-    """
     try:
         data = request.get_json() or {}
+        user_ip = request.remote_addr
+        logger.info(f"[Export] User {user_ip} exported filtered CSV with filters: {data}")
 
-        # Apply same filter as /filter
+        # Apply same filter as /filter POST
         df = filter_patients(
             min_age=data.get("min_age"),
             max_age=data.get("max_age"),
@@ -495,7 +506,6 @@ def export_filtered():
         # Convert DataFrame to CSV string
         csv_data = df.to_csv(index=False)
 
-        # Send as file download
         return Response(
             csv_data,
             mimetype="text/csv",
@@ -508,12 +518,10 @@ def export_filtered():
 
 @main_bp.route("/export/summary", methods=["POST"])
 def export_summary():
-    """
-    Expects same payload as /summary POST.
-    Returns a CSV of the summary table.
-    """
     try:
         data = request.get_json() or {}
+        user_ip = request.remote_addr
+        logger.info(f"[Export] User {user_ip} exported summary CSV: {data}")
         group_by = data.get("group_by")
         agg_column = data.get("column")
         agg_func = data.get("agg_func")
@@ -550,7 +558,6 @@ def export_summary():
             else:
                 result = pd.DataFrame({"Total Records": [len(df)]})
 
-        # Convert to CSV
         csv_data = result.to_csv(index=False)
 
         return Response(

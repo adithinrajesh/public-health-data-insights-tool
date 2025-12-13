@@ -125,6 +125,75 @@ async function goToPage(page) {
     await applyFilters();
 }
 
+function getFilterPayload() {
+    return {
+        min_age: document.getElementById("min_age").value,
+        max_age: document.getElementById("max_age").value,
+        gender: document.getElementById("gender").value,
+        hospital: document.getElementById("hospital").value,
+        condition: document.getElementById("condition").value,
+        doctor: document.getElementById("doctor").value,
+        ad_start: document.getElementById("ad_start").value,
+        ad_end: document.getElementById("ad_end").value,
+        bill_min: document.getElementById("bill_min").value,
+        bill_max: document.getElementById("bill_max").value
+    };
+}
+
+function areFiltersEmpty() {
+    const payload = getFilterPayload();
+    return Object.values(payload).every(val => val === "" || val === null);
+}
+
+async function exportFiltered() {
+    if (areFiltersEmpty()) {
+        alert("Please apply at least one filter before exporting.");
+        return;
+    }
+
+    // Fetch filtered data from backend
+    const payload = getFilterPayload();
+    const response = await fetch("/filter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        alert("No data to export or error occurred.");
+        return;
+    }
+
+    // Get HTML table from response
+    const html = await response.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const table = doc.querySelector("table");
+
+    if (!table) {
+        alert("No matching patients found.");
+        return;
+    }
+
+    // Convert HTML table to CSV
+    let csv = [];
+    const rows = table.querySelectorAll("tr");
+    for (let i = 0; i < rows.length && i < 501; i++) { // first 100 rows + header
+        const cols = rows[i].querySelectorAll("th, td");
+        const row = Array.from(cols).map(col => `"${col.innerText.replace(/"/g, '""')}"`).join(",");
+        csv.push(row);
+    }
+
+    // Download CSV
+    const blob = new Blob([csv.join("\n")], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "filtered_patients.csv";
+    a.click();
+    a.remove();
+}
+
 async function applyFilters() {
     const payload = {
         min_age: document.getElementById("min_age").value,
@@ -151,6 +220,7 @@ async function applyFilters() {
     document.getElementById("results").innerHTML = html;
 }
 </script>
+
 
 </head>
 <body>
@@ -206,6 +276,8 @@ async function applyFilters() {
 
     <button onclick="applyFilters()">Apply Filters</button>
     <button type="button" onclick="resetFilters()">Reset All Filters</button>
+    <button type="button" onclick="exportFiltered()">Export CSV</button>
+
 
     <div class="table-wrapper" id="results"></div>
 

@@ -24,6 +24,8 @@
 const groupColumns = ["Gender","BloodType","MedicalCondition","InsuranceProvider","AdmissionType","Medication","TestResults"];
 const numericColumns = ["Age","BillingAmount"];
 
+
+
 function populateDropdowns() {
     const groupSelect = document.getElementById("group_by");
     const aggSelect = document.getElementById("agg_column");
@@ -89,7 +91,67 @@ function resetSummary() {
     document.getElementById("results").innerHTML = "";
 }
 
+function areSummaryFiltersEmpty() {
+    return !document.getElementById("group_by").value &&
+           !document.getElementById("agg_column").value;
+}
+
+async function exportSummary() {
+    if (areSummaryFiltersEmpty()) {
+        alert("Please select at least one grouping or aggregation before exporting.");
+        return;
+    }
+
+    const payload = {
+        group_by: document.getElementById("group_by").value || null,
+        column: document.getElementById("agg_column").value || null,
+        agg_func: document.getElementById("agg_func").value === "none" ? null : document.getElementById("agg_func").value
+    };
+
+    // Fetch summary table HTML from /summary endpoint
+    const response = await fetch("/summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        alert("No data to export or error occurred.");
+        return;
+    }
+
+    const html = await response.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const table = doc.querySelector("table");
+
+    if (!table) {
+        alert("No summary data found.");
+        return;
+    }
+
+    // Convert table to CSV (first 100 rows only)
+    let csv = [];
+    const rows = table.querySelectorAll("tr");
+    for (let i = 0; i < rows.length && i < 101; i++) {
+        const cols = rows[i].querySelectorAll("th, td");
+        const row = Array.from(cols).map(col => `"${col.innerText.replace(/"/g,'""')}"`).join(",");
+        csv.push(row);
+    }
+
+    const blob = new Blob([csv.join("\n")], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "summary.csv";
+    a.click();
+    a.remove();
+}
+
+
 window.onload = populateDropdowns;
+
+
 </script>
 </head>
 
@@ -128,6 +190,8 @@ window.onload = populateDropdowns;
 
     <button onclick="generateSummary()">Generate Summary</button>
     <button type="button" onclick="resetSummary()">Reset Values</button>
+    <button type="button" onclick="exportSummary()">Export Summary CSV</button>
+
 
     <div class="table-wrapper" id="results"></div>
 </div>
