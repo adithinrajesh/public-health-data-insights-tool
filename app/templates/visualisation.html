@@ -8,13 +8,80 @@
     body { font-family: Arial, sans-serif; margin:0; background:#f4f5f7; }
     header { background:#2c3e50; color:white; padding:20px; text-align:center; position:relative; }
     .back-btn { position:absolute; left:20px; top:20px; padding:10px 20px; background:#555; color:white; border-radius:5px; text-decoration:none; }
-    .container { width:90%; max-width:1200px; margin:25px auto; background:white; padding:25px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1); }
-    .section-title { font-weight:bold; margin-top:15px; font-size:18px; }
-    button { width:auto; padding:10px 15px; margin:5px; background:#3498db; color:white; border:none; cursor:pointer; border-radius:5px; }
-    .plot-container { margin-top:25px; text-align:center; position:relative; }
-    img.plot { max-width:100%; height:auto; margin-top:10px; border:1px solid #ddd; border-radius:8px; display:block; margin-left:auto; margin-right:auto; }
 
-    /* Spinner Styles */
+    .container {
+        display: flex;
+        gap: 20px;
+        width: 90%;
+        max-width: 1200px;
+        margin: 25px auto;
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    #curated_buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-width: 220px;
+        max-height: 600px;
+        overflow-y: auto;
+        padding-right: 5px;
+        border-right: 1px solid #ddd;
+    }
+
+    #curated_buttons button {
+        width: 100%;
+        padding: 10px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-align: left;
+        transition: background 0.2s;
+    }
+
+    #curated_buttons button:hover {
+        background: #2980b9;
+    }
+
+    #curated_buttons button.active {
+        background: #2c3e50;
+    }
+
+    .plot-container {
+        flex: 1;
+        text-align: center;
+        position: relative;
+        min-height: 400px;
+    }
+
+    img.plot {
+        max-width: 100%;
+        height: auto;
+        margin-top: 10px;
+        border:1px solid #ddd;
+        border-radius:8px;
+        display:block;
+        margin-left:auto;
+        margin-right:auto;
+    }
+
+    .plot-title {
+        font-weight: bold;
+        margin-top: 10px;
+        font-size: 18px;
+    }
+
+    .placeholder {
+        color: #666;
+        font-style: italic;
+        margin-top: 150px;
+    }
+
     .spinner {
         display: none;
         border: 8px solid #f3f3f3;
@@ -34,16 +101,32 @@
         0% { transform: translate(-50%, -50%) rotate(0deg); }
         100% { transform: translate(-50%, -50%) rotate(360deg); }
     }
+
+    @media (max-width: 900px) {
+        .container {
+            flex-direction: column;
+        }
+        #curated_buttons {
+            flex-direction: row;
+            overflow-x: auto;
+            border-right: none;
+            border-bottom: 1px solid #ddd;
+            max-height: none;
+        }
+        #curated_buttons button {
+            flex: 0 0 auto;
+        }
+    }
 </style>
 <script>
-// ---------------- Curated Plots ----------------
+let lastPlotName = null;
+
 const curatedPlots = [
     {name: "age_histogram", label: "Histogram of Age"},
     {name: "gender_pie", label: "Gender Breakdown"},
     {name: "bloodtype_bar", label: "Blood Type Frequency"},
     {name: "admission_type_bar", label: "Admissions by Type"},
     {name: "admissions_over_time", label: "Admissions Over Time"},
-    {name: "hospital_bar", label: "Hospital Comparison"},
     {name: "billing_histogram", label: "Billing Amount Distribution"},
     {name: "billing_box_admission", label: "Billing by Admission Type"},
     {name: "billing_avg_insurance", label: "Average Billing per Insurance Provider"},
@@ -58,71 +141,71 @@ const curatedPlots = [
     {name: "clustered_bar", label: "Insurance × Admission × Test Results"}
 ];
 
-// Dynamically create buttons
 function populateCuratedButtons() {
     const container = document.getElementById("curated_buttons");
     curatedPlots.forEach(plot => {
         const btn = document.createElement("button");
         btn.textContent = plot.label;
-        btn.onclick = () => generateCuratedPlot(plot.name);
+        btn.onclick = () => generateCuratedPlot(plot.name, btn);
         container.appendChild(btn);
     });
 }
 
-// Show spinner
-function showSpinner() {
-    document.getElementById("spinner").style.display = "block";
-}
+function showSpinner() { document.getElementById("spinner").style.display = "block"; }
+function hideSpinner() { document.getElementById("spinner").style.display = "none"; }
 
-// Hide spinner
-function hideSpinner() {
-    document.getElementById("spinner").style.display = "none";
-}
-
-// Fetch curated plot from server
-async function generateCuratedPlot(plotName) {
+async function generateCuratedPlot(plotName, btn) {
     showSpinner();
+
+    // Highlight selected button
+    document.querySelectorAll("#curated_buttons button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+
     const response = await fetch("/visualisation/curated", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({plot_name: plotName})
+        body: JSON.stringify({plot_name: plotName, sample: true})
     });
+    
     if (response.ok) {
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
-        document.getElementById("curated_plot_img").src = url;
+        let img = document.getElementById("curated_plot_img");
+        if (!img) {
+            img = document.createElement("img");
+            img.id = "curated_plot_img";
+            img.className = "plot";
+            document.querySelector(".plot-container").appendChild(img);
+        }
+        img.src = url;
+
+        document.getElementById("curated_plot_title").textContent =
+            curatedPlots.find(p => p.name === plotName)?.label || "";
     } else {
         alert("Error generating curated plot.");
     }
     hideSpinner();
 }
 
+
 window.onload = () => {
     populateCuratedButtons();
+    document.getElementById("curated_plot_title").textContent = "Select a curated plot to view it here";
 };
 </script>
 </head>
 <body>
-
 <header>
     <a href="/" class="back-btn">⬅ Home</a>
     <h1>Patient Curated Visualizations</h1>
 </header>
 
 <div class="container">
-
-    <!-- Curated Plots Section -->
-    <div class="section-title">Curated Plots</div>
     <div id="curated_buttons"></div>
-
     <div class="plot-container">
-        <!-- Spinner -->
         <div id="spinner" class="spinner"></div>
-        <!-- Plot Image -->
-        <img id="curated_plot_img" class="plot" src="" alt="Curated Plot">
+        <div id="curated_plot_title" style="text-align:center; font-weight:bold; margin-top:10px;"></div>
     </div>
-
 </div>
-
 </body>
 </html>

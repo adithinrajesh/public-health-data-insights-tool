@@ -226,16 +226,18 @@ def summary_process():
     except Exception as e:
         logger.exception("Summary process error")
         return "<div class='alert'>Error processing summary request.</div>"
-    
 # -------------------------
 # Visualization Routes
 # -------------------------
-from flask import Blueprint, render_template, request, send_file
-import pandas as pd
+import matplotlib
+matplotlib.use("Agg")  # <---- FIX: Use non-GUI backend
 import matplotlib.pyplot as plt
 import seaborn as sns
 import io
+from flask import send_file, request
+import pandas as pd
 from src.cleaning import load_data_from_db, clean_data
+from src.logging_setup import logger
 
 # ---------- Visualisation Pages ----------
 @main_bp.route("/visualisation", methods=["GET"])
@@ -248,10 +250,15 @@ def curated_visualisation():
     try:
         data = request.get_json() or {}
         plot_name = data.get("plot_name")
+        sample = data.get("sample", False)  # frontend can send {sample: true}
 
         # Load and clean dataset
         df = load_data_from_db()
         df = clean_data(df)
+
+        # Use sample if requested
+        if sample:
+            df = df.sample(n=min(len(df), 500), random_state=42)
 
         # Precompute derived columns
         df["LengthOfStay"] = (df["DischargeDate"] - df["DateOfAdmission"]).dt.days
@@ -291,12 +298,6 @@ def curated_visualisation():
             plt.xlabel("Date")
             plt.ylabel("Number of Admissions")
             plt.title("Admissions Over Time")
-
-        elif plot_name == "hospital_bar":
-            df["Hospital"].value_counts().plot(kind="bar", color="orange")
-            plt.xlabel("Hospital")
-            plt.ylabel("Patients")
-            plt.title("Hospital Comparison")
 
         # ---------- Financial Insights ----------
         elif plot_name == "billing_histogram":
@@ -351,7 +352,7 @@ def curated_visualisation():
             plt.title("Length of Stay Distribution")
 
         elif plot_name == "test_results_age_group":
-            df.groupby("AgeGroup")["TestResults"].value_counts().unstack(fill_value=0).plot(kind="bar", stacked=True)
+            df.groupby("AgeGroup", observed=True)["TestResults"].value_counts().unstack(fill_value=0).plot(kind="bar", stacked=True)
             plt.xlabel("Age Group")
             plt.ylabel("Count")
             plt.title("Test Results by Age Group")
@@ -364,7 +365,12 @@ def curated_visualisation():
 
         elif plot_name == "pairplot":
             numeric_df = df[["Age","BillingAmount","LengthOfStay","TestResults"]].sample(min(len(df), 2000), random_state=42)
-            sns.pairplot(numeric_df, hue="TestResults")
+            g = sns.pairplot(numeric_df, hue="TestResults")
+            buf = io.BytesIO()
+            g.savefig(buf)  # save pairplot directly to buffer
+            buf.seek(0)
+            plt.close()
+            return send_file(buf, mimetype="image/png")
 
         elif plot_name == "clustered_bar":
             df.groupby(["InsuranceProvider","AdmissionType","TestResults"]).size().unstack(fill_value=0).plot(kind="bar")
@@ -375,7 +381,7 @@ def curated_visualisation():
         else:
             return "<div class='alert'>Invalid curated plot name.</div>", 400
 
-        # Convert plot to PNG
+        # Convert plot to PNG for all other plots
         buf = io.BytesIO()
         plt.tight_layout()
         plt.savefig(buf, format="png")
