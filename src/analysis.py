@@ -11,7 +11,6 @@ def get_connection():
     """Return a sqlite3 connection."""
     return sqlite3.connect(DB_PATH)
 
-
 # -------------------------------
 # Fetch unique values for a column
 # -------------------------------
@@ -101,8 +100,6 @@ def filter_patients(
     df = pd.read_sql_query(final_query, conn, params=params)
     conn.close()
     return df
-
-import pandas as pd
 
 def get_summary(df, column, agg_type="mean"):
     """

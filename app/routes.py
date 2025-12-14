@@ -1,11 +1,14 @@
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, send_file, jsonify, render_template, Response
 from src.analysis import filter_patients
 from src.logging_setup import logger
 import pandas as pd
-from flask import send_file
-import matplotlib.pyplot as plt
 import io
 from src.cleaning import load_data_from_db, clean_data, save_to_db
+import seaborn as sns
+
+import matplotlib
+matplotlib.use("Agg")  # <---- FIX: Use non-GUI backend
+import matplotlib.pyplot as plt
 
 main_bp = Blueprint("main", __name__)
 
@@ -13,7 +16,6 @@ main_bp = Blueprint("main", __name__)
 def index():
     """Render home page."""
     return render_template("index.html")
-
 
 @main_bp.route("/filter", methods=["GET"])
 def filter_page():
@@ -154,9 +156,6 @@ def filter_process():
 def summary_page():
     """Render the summary/analysis page."""
     return render_template("summary.html")
-from src.cleaning import load_data_from_db, clean_data
-
-from src.cleaning import load_data_from_db, clean_data
 
 @main_bp.route("/summary", methods=["POST"])
 def summary_process():
@@ -226,18 +225,10 @@ def summary_process():
     except Exception as e:
         logger.exception("Summary process error")
         return "<div class='alert'>Error processing summary request.</div>"
+    
 # -------------------------
 # Visualization Routes
 # -------------------------
-import matplotlib
-matplotlib.use("Agg")  # <---- FIX: Use non-GUI backend
-import matplotlib.pyplot as plt
-import seaborn as sns
-import io
-from flask import send_file, request
-import pandas as pd
-from src.cleaning import load_data_from_db, clean_data
-from src.logging_setup import logger
 
 # ---------- Visualisation Pages ----------
 @main_bp.route("/visualisation", methods=["GET"])
@@ -397,9 +388,6 @@ def curated_visualisation():
 # -------------------------
 # CRUD Routes
 # -------------------------
-from flask import Blueprint, request, jsonify, render_template
-import pandas as pd
-from src.cleaning import load_data_from_db, save_to_db, clean_data
 
 crud_bp = Blueprint("crud", __name__)
 
@@ -482,8 +470,6 @@ def delete_patient(patient_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
-from flask import Response, request, jsonify
-import pandas as pd
 
 @main_bp.route("/export/filtered", methods=["POST"])
 def export_filtered():

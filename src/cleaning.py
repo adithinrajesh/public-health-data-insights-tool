@@ -59,7 +59,7 @@ def save_cleaned_data(df: pd.DataFrame):
     conn = create_connection()
     df.to_sql("patients", conn, if_exists="replace", index=False)
     conn.close()
-    print("✔ Cleaned data saved to database")
+    print("Cleaned data saved to database")
 
 import sqlite3
 def save_to_db(df: pd.DataFrame):
